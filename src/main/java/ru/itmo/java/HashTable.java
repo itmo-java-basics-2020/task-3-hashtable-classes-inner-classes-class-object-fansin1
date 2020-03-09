@@ -1,9 +1,5 @@
 package ru.itmo.java;
 
-import java.util.Arrays;
-import java.util.Objects;
-import java.util.function.Predicate;
-
 public class HashTable {
 
     private static final int INITIAL_CAPACITY = 1000;
@@ -40,7 +36,7 @@ public class HashTable {
 
         Object valueBefore = null;
         if (mPairs[pos] != null) {
-            valueBefore = mPairs[pos].value;
+            valueBefore = mPairs[pos].getValue();
         }
 
         mPairs[pos] = new Pair(key, value);
@@ -59,7 +55,8 @@ public class HashTable {
         }
 
         Pair pair = mPairs[findPos(key)];
-        return pair.value;
+
+        return pair.getValue();
     }
 
     Object remove(Object key) {
@@ -68,9 +65,9 @@ public class HashTable {
             return null;
         }
 
-        Object result = mPairs[pos].value;
+        Object result = mPairs[pos].getValue();
 
-        mPairs[pos] = null;
+        mPairs[pos] = Pair.createTombstone();
         mSize--;
 
         return result;
@@ -85,28 +82,42 @@ public class HashTable {
     }
 
     private int findNewPos(Object key) {
-        return find(key.hashCode(), Objects::isNull);
-    }
+        int hash = index(key, mPairs.length);
 
-    private int findPos(Object key) {
-        return find(key.hashCode(), pair -> {
-            if (pair != null) {
-                return key.equals(pair.key);
-            } else {
-                return false;
-            }
-        });
-    }
-
-    private int find(int hashCode, Predicate<Pair> comparator) {
-        for (int i = Math.abs(hashCode) % mPairs.length; i < mPairs.length; i++) {
-            if (comparator.test(mPairs[i])) {
+        for (int i = hash; i < mPairs.length; i++) {
+            if (mPairs[i] == null || mPairs[i].isTombstone()) {
                 return i;
             }
         }
 
-        for (int i = 0; i < mPairs.length; i++) {
-            if (comparator.test(mPairs[i])) {
+        for (int i = 0; i < hash; i++) {
+            if (mPairs[i] == null || mPairs[i].isTombstone()) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private int findPos(Object key) {
+        int hash = index(key, mPairs.length);
+
+        for (int i = hash; i < mPairs.length; i++) {
+            if (mPairs[i] == null) {
+                return -1;
+            }
+
+            if (!mPairs[i].isTombstone() && mPairs[i].key.equals(key)) {
+                return i;
+            }
+        }
+
+        for (int i = 0; i < hash; i++) {
+            if (mPairs[i] == null) {
+                return -1;
+            }
+
+            if (!mPairs[i].isTombstone() && mPairs[i].key.equals(key)) {
                 return i;
             }
         }
@@ -116,18 +127,58 @@ public class HashTable {
 
     private void updateCapacity() {
         if (mSize >= threshold()) {
-            mPairs = Arrays.copyOf(mPairs, mCapacity * 2);
             mCapacity = mCapacity * 2;
+
+            Pair[] oldPairs = mPairs;
+            mPairs = new Pair[mCapacity];
+
+            int prevSize = mSize;
+
+            for (Pair oldPair : oldPairs) {
+                if (oldPair != null && !oldPair.isTombstone()) {
+                    mPairs[findNewPos(oldPair.getKey())] =
+                            new Pair(oldPair.getKey(), oldPair.getValue());
+                }
+            }
+
+            mSize = prevSize;
         }
     }
 
+    private int index(Object object, int length) {
+        return Math.abs(object.hashCode() % length);
+    }
+
     private static class Pair {
-        Object key;
-        Object value;
+        private final Object key;
+        private final Object value;
+        private boolean isTombstone;
+
+        public static Pair createTombstone() {
+            return new Pair();
+        }
+
+        private Pair() {
+            key = null;
+            value = null;
+            isTombstone = true;
+        }
 
         public Pair(Object key, Object value) {
             this.key = key;
             this.value = value;
+        }
+
+        public Object getKey() {
+            return key;
+        }
+
+        public Object getValue() {
+            return value;
+        }
+
+        public boolean isTombstone() {
+            return isTombstone;
         }
     }
 
