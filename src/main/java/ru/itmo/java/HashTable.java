@@ -4,6 +4,8 @@ public class HashTable {
 
     private static final int INITIAL_CAPACITY = 1000;
     private static final double LOAD_FACTOR = 0.5;
+    private static final double CAPACITY_MULTIPLIER = 2.0;
+    private static final int NOT_EXISTS = -1;
 
     private Pair[] mPairs;
     private int mCapacity;
@@ -30,7 +32,7 @@ public class HashTable {
 
     Object put(Object key, Object value) {
         int pos = findPos(key);
-        if (pos == -1) {
+        if (pos == NOT_EXISTS) {
             pos = findNewPos(key);
         }
 
@@ -50,7 +52,7 @@ public class HashTable {
 
     Object get(Object key) {
         int pos = findPos(key);
-        if (pos == -1) {
+        if (pos == NOT_EXISTS) {
             return null;
         }
 
@@ -61,7 +63,7 @@ public class HashTable {
 
     Object remove(Object key) {
         int pos = findPos(key);
-        if (pos == -1) {
+        if (pos == NOT_EXISTS) {
             return null;
         }
 
@@ -96,7 +98,7 @@ public class HashTable {
             }
         }
 
-        return -1;
+        return NOT_EXISTS;
     }
 
     private int findPos(Object key) {
@@ -104,7 +106,7 @@ public class HashTable {
 
         for (int i = hash; i < mPairs.length; i++) {
             if (mPairs[i] == null) {
-                return -1;
+                return NOT_EXISTS;
             }
 
             if (!mPairs[i].isTombstone() && mPairs[i].key.equals(key)) {
@@ -114,7 +116,7 @@ public class HashTable {
 
         for (int i = 0; i < hash; i++) {
             if (mPairs[i] == null) {
-                return -1;
+                return NOT_EXISTS;
             }
 
             if (!mPairs[i].isTombstone() && mPairs[i].key.equals(key)) {
@@ -122,12 +124,12 @@ public class HashTable {
             }
         }
 
-        return -1;
+        return NOT_EXISTS;
     }
 
     private void updateCapacity() {
         if (mSize >= threshold()) {
-            mCapacity = mCapacity * 2;
+            mCapacity = (int) (mCapacity * CAPACITY_MULTIPLIER);
 
             Pair[] oldPairs = mPairs;
             mPairs = new Pair[mCapacity];
