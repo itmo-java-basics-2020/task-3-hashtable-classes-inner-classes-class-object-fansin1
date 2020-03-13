@@ -56,7 +56,7 @@ public class HashTable {
             return null;
         }
 
-        Pair pair = mPairs[findPos(key)];
+        Pair pair = mPairs[pos];
 
         return pair.getValue();
     }
