@@ -1,5 +1,7 @@
 package ru.itmo.java;
 
+import java.util.function.Predicate;
+
 public class HashTable {
 
     private static final int INITIAL_CAPACITY = 1000;
@@ -7,7 +9,7 @@ public class HashTable {
     private static final double CAPACITY_MULTIPLIER = 2.0;
     private static final int NOT_EXISTS = -1;
 
-    private Pair[] mPairs;
+    private Entity[] mEntities;
     private int mCapacity;
     private int mSize;
     private double mLoadFactor;
@@ -15,19 +17,19 @@ public class HashTable {
     HashTable(int initialCapacity, double loadFactor) {
         mLoadFactor = loadFactor;
         mCapacity = initialCapacity;
-        mPairs = new Pair[mCapacity];
+        mEntities = new Entity[mCapacity];
     }
 
     HashTable(int initialCapacity) {
         mLoadFactor = LOAD_FACTOR;
         mCapacity = initialCapacity;
-        mPairs = new Pair[mCapacity];
+        mEntities = new Entity[mCapacity];
     }
 
     HashTable() {
         mLoadFactor = LOAD_FACTOR;
         mCapacity = INITIAL_CAPACITY;
-        mPairs = new Pair[mCapacity];
+        mEntities = new Entity[mCapacity];
     }
 
     Object put(Object key, Object value) {
@@ -37,11 +39,11 @@ public class HashTable {
         }
 
         Object valueBefore = null;
-        if (mPairs[pos] != null) {
-            valueBefore = mPairs[pos].getValue();
+        if (mEntities[pos] != null) {
+            valueBefore = mEntities[pos].getValue();
         }
 
-        mPairs[pos] = new Pair(key, value);
+        mEntities[pos] = new Entity(key, value);
         if (valueBefore == null) {
             mSize++;
         }
@@ -56,9 +58,9 @@ public class HashTable {
             return null;
         }
 
-        Pair pair = mPairs[pos];
+        Entity entity = mEntities[pos];
 
-        return pair.getValue();
+        return entity.getValue();
     }
 
     Object remove(Object key) {
@@ -67,9 +69,9 @@ public class HashTable {
             return null;
         }
 
-        Object result = mPairs[pos].getValue();
+        Object result = mEntities[pos].getValue();
 
-        mPairs[pos] = Pair.createTombstone();
+        mEntities[pos] = Entity.createTombstone();
         mSize--;
 
         return result;
@@ -84,42 +86,31 @@ public class HashTable {
     }
 
     private int findNewPos(Object key) {
-        int hash = index(key, mPairs.length);
-
-        for (int i = hash; i < mPairs.length; i++) {
-            if (mPairs[i] == null || mPairs[i].isTombstone()) {
-                return i;
-            }
-        }
-
-        for (int i = 0; i < hash; i++) {
-            if (mPairs[i] == null || mPairs[i].isTombstone()) {
-                return i;
-            }
-        }
-
-        return NOT_EXISTS;
+        return find(key, entity -> entity == null || entity.isTombstone());
     }
 
     private int findPos(Object key) {
-        int hash = index(key, mPairs.length);
+        int pos = find(key, entity ->
+                entity == null || !entity.isTombstone() && key.equals(entity.key));
 
-        for (int i = hash; i < mPairs.length; i++) {
-            if (mPairs[i] == null) {
-                return NOT_EXISTS;
-            }
+        if (mEntities[pos] == null) {
+            return NOT_EXISTS;
+        }
 
-            if (!mPairs[i].isTombstone() && mPairs[i].key.equals(key)) {
+        return pos;
+    }
+
+    private int find(Object key, Predicate<Entity> searchPredicate) {
+        int hash = index(key, mEntities.length);
+
+        for (int i = hash; i < mEntities.length; i++) {
+            if (searchPredicate.test(mEntities[i])) {
                 return i;
             }
         }
 
         for (int i = 0; i < hash; i++) {
-            if (mPairs[i] == null) {
-                return NOT_EXISTS;
-            }
-
-            if (!mPairs[i].isTombstone() && mPairs[i].key.equals(key)) {
+            if (searchPredicate.test(mEntities[i])) {
                 return i;
             }
         }
@@ -131,15 +122,15 @@ public class HashTable {
         if (mSize >= threshold()) {
             mCapacity = (int) (mCapacity * CAPACITY_MULTIPLIER);
 
-            Pair[] oldPairs = mPairs;
-            mPairs = new Pair[mCapacity];
+            Entity[] oldEntities = mEntities;
+            mEntities = new Entity[mCapacity];
 
             int prevSize = mSize;
 
-            for (Pair oldPair : oldPairs) {
-                if (oldPair != null && !oldPair.isTombstone()) {
-                    mPairs[findNewPos(oldPair.getKey())] =
-                            new Pair(oldPair.getKey(), oldPair.getValue());
+            for (Entity oldEntity : oldEntities) {
+                if (oldEntity != null && !oldEntity.isTombstone()) {
+                    mEntities[findNewPos(oldEntity.getKey())] =
+                            new Entity(oldEntity.getKey(), oldEntity.getValue());
                 }
             }
 
@@ -151,22 +142,20 @@ public class HashTable {
         return Math.abs(object.hashCode() % length);
     }
 
-    private static class Pair {
+    private static class Entity {
         private final Object key;
         private final Object value;
-        private boolean isTombstone;
 
-        public static Pair createTombstone() {
-            return new Pair();
+        public static Entity createTombstone() {
+            return new Entity();
         }
 
-        private Pair() {
+        private Entity() {
             key = null;
             value = null;
-            isTombstone = true;
         }
 
-        public Pair(Object key, Object value) {
+        public Entity(Object key, Object value) {
             this.key = key;
             this.value = value;
         }
@@ -180,7 +169,7 @@ public class HashTable {
         }
 
         public boolean isTombstone() {
-            return isTombstone;
+            return key == null;
         }
     }
 
