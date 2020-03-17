@@ -54,7 +54,7 @@ public class HashTable {
             return null;
         }
 
-        return entities[pos];
+        return entities[pos].getValue();
     }
 
     public Object remove(Object key) {
