@@ -9,108 +9,102 @@ public class HashTable {
     private static final double CAPACITY_MULTIPLIER = 2.0;
     private static final int NOT_EXISTS = -1;
 
-    private Entity[] mEntities;
-    private int mCapacity;
-    private int mSize;
-    private double mLoadFactor;
+    private Entity[] entities;
+    private int capacity;
+    private int size;
+    private double loadFactor;
 
-    HashTable(int initialCapacity, double loadFactor) {
-        mLoadFactor = loadFactor;
-        mCapacity = initialCapacity;
-        mEntities = new Entity[mCapacity];
+    public HashTable(int initialCapacity, double loadFactor) {
+        this.loadFactor = loadFactor;
+        capacity = initialCapacity;
+        entities = new Entity[capacity];
     }
 
-    HashTable(int initialCapacity) {
-        mLoadFactor = LOAD_FACTOR;
-        mCapacity = initialCapacity;
-        mEntities = new Entity[mCapacity];
+    public HashTable(int initialCapacity) {
+        this(initialCapacity, LOAD_FACTOR);
     }
 
-    HashTable() {
-        mLoadFactor = LOAD_FACTOR;
-        mCapacity = INITIAL_CAPACITY;
-        mEntities = new Entity[mCapacity];
+    public HashTable() {
+        this(INITIAL_CAPACITY, LOAD_FACTOR);
     }
 
-    Object put(Object key, Object value) {
+    public Object put(Object key, Object value) {
         int pos = findPos(key);
         if (pos == NOT_EXISTS) {
             pos = findNewPos(key);
         }
 
         Object valueBefore = null;
-        if (mEntities[pos] != null) {
-            valueBefore = mEntities[pos].getValue();
+        if (entities[pos] != null) {
+            valueBefore = entities[pos].getValue();
         }
 
-        mEntities[pos] = new Entity(key, value);
+        entities[pos] = new Entity(key, value);
         if (valueBefore == null) {
-            mSize++;
+            size++;
         }
-        updateCapacity();
+        ensureCapacity();
 
         return valueBefore;
     }
 
-    Object get(Object key) {
+    public Object get(Object key) {
         int pos = findPos(key);
         if (pos == NOT_EXISTS) {
             return null;
         }
 
-        Entity entity = mEntities[pos];
-
-        return entity.getValue();
+        return entities[pos];
     }
 
-    Object remove(Object key) {
+    public Object remove(Object key) {
         int pos = findPos(key);
         if (pos == NOT_EXISTS) {
             return null;
         }
 
-        Object result = mEntities[pos].getValue();
+        Object result = entities[pos].getValue();
 
-        mEntities[pos] = Entity.createTombstone();
-        mSize--;
+        entities[pos] = Entity.TOMBSTONE_ENTITY;
+        size--;
 
         return result;
     }
 
-    int size() {
-        return mSize;
+    public int size() {
+        return size;
     }
 
     private int threshold() {
-        return (int) (mCapacity * mLoadFactor);
+        return (int) (capacity * loadFactor);
     }
 
     private int findNewPos(Object key) {
-        return find(key, entity -> entity == null || entity.isTombstone());
+        return findByPredicate(key, entity -> entity == null || entity.isTombstone());
     }
 
     private int findPos(Object key) {
-        int pos = find(key, entity ->
+        int pos = findByPredicate(key, entity ->
                 entity == null || !entity.isTombstone() && key.equals(entity.key));
 
-        if (mEntities[pos] == null) {
+        if (entities[pos] == null) {
             return NOT_EXISTS;
         }
 
         return pos;
     }
 
-    private int find(Object key, Predicate<Entity> searchPredicate) {
-        int hash = index(key, mEntities.length);
+    private int findByPredicate(Object key, Predicate<Entity> searchPredicate) {
+        int startIndex = index(key, entities.length);
 
-        for (int i = hash; i < mEntities.length; i++) {
-            if (searchPredicate.test(mEntities[i])) {
+        for (int i = startIndex; i < entities.length; i++) {
+            if (searchPredicate.test(entities[i])) {
                 return i;
             }
         }
 
-        for (int i = 0; i < hash; i++) {
-            if (searchPredicate.test(mEntities[i])) {
+        for (int i = 0; i < startIndex; i++) {
+            if (searchPredicate.test(entities[i])) {
                 return i;
             }
         }
@@ -118,23 +112,22 @@ public class HashTable {
         return NOT_EXISTS;
     }
 
-    private void updateCapacity() {
-        if (mSize >= threshold()) {
-            mCapacity = (int) (mCapacity * CAPACITY_MULTIPLIER);
+    private void ensureCapacity() {
+        if (size >= threshold()) {
+            capacity = (int) (capacity * CAPACITY_MULTIPLIER);
 
-            Entity[] oldEntities = mEntities;
-            mEntities = new Entity[mCapacity];
+            Entity[] oldEntities = entities;
+            entities = new Entity[capacity];
 
-            int prevSize = mSize;
+            int prevSize = size;
 
             for (Entity oldEntity : oldEntities) {
                 if (oldEntity != null && !oldEntity.isTombstone()) {
-                    mEntities[findNewPos(oldEntity.getKey())] =
-                            new Entity(oldEntity.getKey(), oldEntity.getValue());
+                    entities[findNewPos(oldEntity.getKey())] = oldEntity;
                 }
             }
 
-            mSize = prevSize;
+            size = prevSize;
         }
     }
 
@@ -143,17 +136,10 @@ public class HashTable {
     }
 
     private static class Entity {
+        private static final Entity TOMBSTONE_ENTITY = new Entity(null, null);
+
         private final Object key;
         private final Object value;
-
-        public static Entity createTombstone() {
-            return new Entity();
-        }
-
-        private Entity() {
-            key = null;
-            value = null;
-        }
 
         public Entity(Object key, Object value) {
             this.key = key;
@@ -169,8 +155,7 @@ public class HashTable {
         }
 
         public boolean isTombstone() {
-            return key == null;
+            return this == TOMBSTONE_ENTITY;
         }
     }
-
 }
