@@ -119,15 +119,11 @@ public class HashTable {
             Entity[] oldEntities = entities;
             entities = new Entity[capacity];
 
-            int prevSize = size;
-
             for (Entity oldEntity : oldEntities) {
                 if (oldEntity != null && !oldEntity.isTombstone()) {
                     entities[findNewPos(oldEntity.getKey())] = oldEntity;
                 }
             }
-
-            size = prevSize;
         }
     }
 
